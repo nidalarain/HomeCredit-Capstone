@@ -21,6 +21,9 @@ library(ggplot2)
 
 nidalio <- c(1,2,3)
 rayansafatty <- c(1,2,3,4,5,6)
+
+#aadding more coments to commit change
+
 # Loading the data
 toy_sales <- read.csv("https://raw.githubusercontent.com/jefftwebb/data/main/toy_sales_data.csv")
 head(toy_sales)
