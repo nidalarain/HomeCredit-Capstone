@@ -1,0 +1,153 @@
+---
+title: "HomeCredit Modeling"
+author: "Nidal Arain"
+date: "2024-10-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,       
+  warning = FALSE,   
+  message = FALSE    
+)
+```
+
+
+## Task I - Data Setup/Preprocessing
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(caret) 
+library(randomForest)
+library(e1071)
+library(missForest)
+library(ROSE)
+NA_ApplicationTrain <- read.csv("application_train.csv", stringsAsFactors = FALSE)
+NA_ApplicationTest <- read.csv("application_test.csv", stringsAsFactors = FALSE)
+
+#character variables to factors
+NA_ApplicationTrain <- data.frame(lapply(NA_ApplicationTrain, function(x) if(is.character(x)) as.factor(x) else x))
+NA_ApplicationTest <- data.frame(lapply(NA_ApplicationTest, function(x) if(is.character(x)) as.factor(x) else x))
+
+#predictors based on correlation being more than 0.03 positive or negative
+important_vars <- c("EXT_SOURCE_1", "EXT_SOURCE_2", "EXT_SOURCE_3", 
+                    "DAYS_BIRTH", "REGION_RATING_CLIENT_W_CITY", "REGION_RATING_CLIENT",
+                    "DAYS_LAST_PHONE_CHANGE", "DAYS_ID_PUBLISH", "REG_CITY_NOT_WORK_CITY", 
+                    "FLAG_EMP_PHONE", "REG_CITY_NOT_LIVE_CITY", "FLAG_DOCUMENT_3",
+                    "DAYS_REGISTRATION", "OWN_CAR_AGE", "LIVE_CITY_NOT_WORK_CITY")
+
+# Subset with important variables
+NA_ApplicationTrain_subset <- NA_ApplicationTrain[, c("TARGET", important_vars)]
+NA_ApplicationTrain_subset <- na.omit(NA_ApplicationTrain_subset)  # Remove rows with NAs
+NA_ApplicationTrain_subset$TARGET <- as.factor(NA_ApplicationTrain_subset$TARGET)
+
+
+set.seed(123)
+# Split data into train and test sets
+NA_train_index <- createDataPartition(NA_ApplicationTrain_subset$TARGET, p = 0.7, list = FALSE)
+NA_train_data <- NA_ApplicationTrain_subset[NA_train_index, ]
+NA_test_data <- NA_ApplicationTrain_subset[-NA_train_index, ]
+
+NA_train_data
+```
+
+
+## Random Forest Model
+This output shows that the model is successfully trained with an out-of-bag (OOB) error rate of 6.61%, which is a measure of prediction accuracy on the training data.
+high class error for the minority class (1), it might be worth exploring techniques to handle class imbalance
+
+```{r}
+#Random Forest on selected important variables in train set
+rf_model <- randomForest(TARGET ~ ., data = NA_train_data, ntree = 100, importance = TRUE)
+
+# Print the model summary
+print(rf_model)
+
+# Check variable importance
+importance(rf_model)
+
+```
+## Predicting on Random Forest
+```{r}
+# Predict on the Kaggle test dataset (NA_ApplicationTest)
+NA_test_predictions_kaggle <- predict(rf_model, newdata = NA_ApplicationTest, type = "prob")
+
+# Extract probabilities for class '1' (positive class)
+NA_test_predictions_kaggle_class1 <- NA_test_predictions_kaggle[, "1"]
+
+# Check for NA values in predictions
+sum(is.na(NA_test_predictions_kaggle_class1))  # This should be 0; if not, handle NA predictions.
+NA_test_predictions_kaggle_class1[is.na(NA_test_predictions_kaggle_class1)] <- mean(NA_test_predictions_kaggle_class1, na.rm = TRUE)
+
+
+```
+
+##AUC
+```{r}
+library(pROC)
+
+# Get predicted probabilities for the validation/test set (NA_test_data)
+NA_test_probabilities <- predict(rf_model, newdata = NA_test_data, type = "prob")
+
+# Extract probabilities for class '1'
+NA_test_prob_class1 <- NA_test_probabilities[, "1"]
+
+# Generate ROC curve
+roc_curve <- roc(NA_test_data$TARGET, NA_test_prob_class1, levels = rev(levels(NA_test_data$TARGET)))
+
+# Plot the ROC curve
+plot(roc_curve, col = "blue", lwd = 2, main = "ROC Curve for Random Forest Model")
+
+# Calculate AUC
+auc_value <- auc(roc_curve)
+print(paste("AUC:", auc_value))
+
+```
+
+yaa
+## Getting Kaggle Score
+```{r}
+# Prepare the submission dataframe
+kaggle_submission <- data.frame(
+  SK_ID_CURR = NA_ApplicationTest$SK_ID_CURR,  # Test set unique IDs
+  TARGET = NA_test_predictions_kaggle_class1   # Predicted probabilities for class 1
+)
+
+# Save the submission file as a CSV
+write.csv(kaggle_submission, "kaggle_submission.csv", row.names = FALSE)
+
+# Check the first few rows of the file
+kaggle_submission
+
+```
+
+## Answering the Descriptions
+
+Modeling Process and Interpretation of Results
+Two main models were developed and evaluated: an initial random forest model on the unbalanced dataset and a balanced random forest model. Here’s a summary of the modeling steps and the insights from the results:
+
+Random Forest Model (Unbalanced Data):
+
+This model was trained using the selected important variables on the original (unbalanced) training data.
+Out-of-Bag (OOB) Error Rate: 6.61%, indicating acceptable performance within the training data.
+Test Set Performance: High accuracy of ~93.45% due to the strong representation of the majority class. However, sensitivity (recall for the default class) was low, indicating difficulty in accurately identifying defaulters.
+Variable Importance: The top variables impacting predictions included EXT_SOURCE_1, EXT_SOURCE_2, EXT_SOURCE_3, DAYS_BIRTH, and DAYS_LAST_PHONE_CHANGE. These findings are consistent with factors likely to influence creditworthiness, such as external ratings and applicant age.
+
+
+
+Balanced Random Forest Model:
+
+Trained on a balanced version of the training data (oversampled and undersampled) to improve recall for the minority class (defaulters).
+Out-of-Bag (OOB) Error Rate: Nearly 0%, which initially suggests high accuracy. However, extremely low OOB error in a balanced dataset can indicate potential overfitting, as the model has likely learned the training data patterns very well.
+Test Set Performance: Accuracy remained similar at ~93.41%. However, sensitivity increased slightly, reflecting an improved ability to identify defaults. This improvement supports the effectiveness of balancing for enhancing recall on the minority class.
+Confusion Matrix: The balanced model performed better than the unbalanced model in detecting defaulters, as seen from a higher recall for the default class.
+Interpretation of Results:
+
+Model Choice: The balanced random forest model showed slightly better performance in identifying defaulters, though sensitivity remained modest. For this dataset, balancing techniques helped the model generalize better for the minority class, which is crucial for minimizing loan defaults.
+Recommendations: While the balanced random forest improved recall, the low sensitivity suggests potential for further tuning or testing alternative algorithms (e.g., boosting methods) that might enhance recall for defaulters.
+
+
+
+

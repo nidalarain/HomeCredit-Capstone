@@ -1,0 +1,259 @@
+---
+title: "EDA Notebook"
+author: "Nidal Arain"
+date: "2024-10-03"
+output: 
+  html_document: 
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,       
+  warning = FALSE,   
+  message = FALSE    
+)
+```
+
+## Introduction
+The main challenge faced by Home Credit Group is accurately assessing the repayment capabilities of loan applicants with little or no credit history. An accurate assessment system will make sure that those capable of repaying are not denied unfairly, while also enhancing financial inclusion. The overall business problem is the risk of financial loss due to defaults by incorrectly assessed loan applicants and missed opportunities in granting loans to worthy applicants.
+The analytics task is to develop a predictive model that accurately identifies potential defaulters, in order to decrease the risk of defaults while optimizing loan approval rates. The outcome variable for this analysis is whether an applicant will default on a loan, which will be used as the target variable in our predictive modeling.
+
+The initial exploratory data analysis provided insights into significant predictors such as age, employment length, external sources ratings, and the number of days since the last phone change.
+
+Questions to guide your exploration. List as many as you can think of.
+
+
+Thoughtful reflection on the meaning and significance of exploratory results--plots and tables--for the project. This interpretive writing belongs in the main sections of the notebook dedicated to data exploration, and should go between code chunks. These variables show potential strong relationships with the loan default probability and will be used to develop the predictive model.
+
+
+## Task I - Data Cleaning
+```{r}
+## Task I - Data Cleaning
+library(dplyr)
+library(tidyverse)
+library(tidyr)  
+library(data.table)
+library(skimr)
+
+# Load the dataset, converting strings to factors directly during import
+train_data <- read.csv("application_train.csv", stringsAsFactors = TRUE)
+
+#Understanding data set size and structure
+head(train_data)
+str(train_data)
+summary(train_data)
+
+#Summary of missing data
+skim(train_data)
+
+#Replacing missing values: Categorical variables with the mode, Numeric variables with the median
+
+#Function to calculate mode (most frequent value)
+calculate_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Apply mode or median to replace NA values
+train_data <- train_data %>%
+  mutate(across(where(is.factor), ~ replace_na(., calculate_mode(.)))) %>%
+  mutate(across(where(is.numeric), ~ replace_na(., median(., na.rm = TRUE))))
+
+summary(train_data)
+
+
+```
+
+
+
+## Task II - Exploring Target Variable
+What is the distribution of the target variable in the data set?
+
+```{r}
+
+#exploring the target variable
+target_counts <- table(train_data$TARGET)
+print(target_counts)
+prop.table(target_counts)
+
+# Calculate baseline accuracy for a majority class classifier
+baseline_accuracy <- max(target_counts) / sum(target_counts)
+print(paste("Baseline Accuracy:", round(baseline_accuracy, 4)))
+
+```
+
+*Is the data unbalanced with respect to the target?*
+
+The target variable TARGET has two classes: 0 and 1. The counts are 282,686 for class 0 and 24,825 for class 1.
+The proportions are 91.93% for class 0 and 8.07% for class 1.
+The analysis of the target variable shows an imbalance between the two classes: the majority of loan applicants (approximately 91.93%) did not default on their loans, while only about 8.07% did. 
+
+*What would the accuracy be for a simple model consisting of a majority class classifier?*
+
+The baseline accuracy, calculated as the proportion of the majority class (class 0) is 91.93%. This means that if you were to use a simple model that always predicts the majority class (class 0, which occurs most frequently), you would achieve an accuracy of approximately 91.93% on this dataset.
+
+
+
+
+
+## Task III Explore Target and Predictors Relationships
+What are the strongest relationships between target and predictors? Will they be worth modeling?
+```{r}
+library(caret)
+library(rpart)
+
+#Exploring numeric variables to find strongest relationships
+numeric_features <- sapply(train_data, is.numeric)
+correlations <- sapply(train_data[, numeric_features], function(x) {
+  cor(x, train_data$TARGET, method = "pearson", use = "complete.obs")
+})
+
+#sorting by absolute value to see the strongest correlations
+sorted_correlations <- sort(correlations, decreasing = TRUE)
+sorted_correlations
+
+```
+
+**Explore the relationship between target and predictors, looking for potentially strong predictors that could be included later in a model.*
+
+Found the few strongest positive correlations being with variables like  DAYS_LAST_PHONE_CHANGE and REGION_RATING_CLIENT_W_CITY. These factors suggest that regional stability and recent major life changes (as shown by changing a phone number) could have implications for financial reliability. 
+
+DAYS_BIRTH variable which is the age of the applicant, shows a positive correlation indicating that younger applicants are more likely to default. This could reflect higher risk behavior or less financial stability associated with younger ages.
+
+The strongest negative correlations with the target variable are EXT_SOURCE_2 and EXT_SOURCE_3EXT_SOURCE_2 and EXT_SOURCE_3 suggesting they are influential in predicting loan defaults.
+
+
+
+# Visualizing Strong Numeric Values
+```{r}
+library(ggplot2)
+# Visualizing Strong Numeric Values
+library(ggplot2)
+
+# Plot for EXT_SOURCE_2
+ggplot(train_data, aes(x = EXT_SOURCE_2, y = TARGET)) +
+  geom_jitter(alpha = 0.1, color = "blue", width = 0.02, height = 0.02) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), color = "red") +
+  labs(title = "EXT_SOURCE_2 vs Target", x = "EXT_SOURCE_2", y = "Default Probability") +
+  theme_minimal()
+
+# Plot for EXT_SOURCE_3
+ggplot(train_data, aes(x = EXT_SOURCE_3, y = TARGET)) +
+  geom_jitter(alpha = 0.1, color = "green", width = 0.02, height = 0.02) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), color = "red") +
+  labs(title = "EXT_SOURCE_3 vs Target", x = "EXT_SOURCE_3", y = "Default Probability") +
+  theme_minimal()
+
+# Plot for DAYS_BIRTH
+ggplot(train_data, aes(x = -DAYS_BIRTH / 365, y = TARGET)) +  # Convert days to years and make positive
+  geom_jitter(alpha = 0.1, color = "magenta", width = 0.02, height = 0.02) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), color = "red") +
+  labs(title = "Age vs Target", x = "Age (years)", y = "Default Probability") +
+  theme_minimal()
+
+# Plot for DAYS_EMPLOYED
+ggplot(train_data, aes(x = -DAYS_EMPLOYED / 365, y = TARGET)) +  # Convert days to years and make positive
+  geom_jitter(alpha = 0.1, color = "orange", width = 0.02, height = 0.02) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), color = "red") +
+  labs(title = "Days Employed vs Target", x = "Years Employed", y = "Default Probability") +
+  theme_minimal()
+
+# Plot for DAYS_LAST_PHONE_CHANGE
+ggplot(train_data, aes(x = -DAYS_LAST_PHONE_CHANGE, y = TARGET)) +
+  geom_jitter(alpha = 0.1, color = "purple", width = 0.02, height = 0.02) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), color = "red") +
+  labs(title = "Days Since Last Phone Change vs Target", x = "Days Since Last Phone Change", y = "Default Probability") +
+  theme_minimal()
+
+# Plot for REGION_RATING_CLIENT_W_CITY
+ggplot(train_data, aes(x = REGION_RATING_CLIENT_W_CITY, y = TARGET)) +
+  geom_jitter(alpha = 0.1, color = "cyan", width = 0.02, height = 0.02) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), color = "red") +
+  labs(title = "Region Rating in City vs Target", x = "Region Rating in City", y = "Default Probability") +
+  theme_minimal()
+
+
+```
+The visualizations provide a better understanding of how the highly correlated predictors interact with the target variable. EXT_SOURCE_2 and EXT_SOURCE_3 display strong negative correlations with default probability, which confirms their potential as key predictors. Also, the age and employment stability of applicants show trends that younger and less steadily employed individuals have higher default risks. All of these key predictors along with regional variations shown in REGION_RATING_CLIENT_W_CITY, will be factors for the predictive model.
+
+
+
+
+
+
+
+
+## Joining wiht transactional data
+Joining application_{train|test}.csv with transactional data inprevious_application.csv.
+
+#Aggregating
+```{r}
+# Assuming 'previous_application.csv' is your data file
+previous_data <- read.csv("previous_application.csv")
+
+# Aggregate previous application data
+previous_agg <- previous_data %>%
+  group_by(SK_ID_CURR) %>%
+  summarise(
+    count_previous_applications = n(),
+    mean_amt_annuity = mean(AMT_ANNUITY, na.rm = TRUE),
+    max_amt_credit = max(AMT_CREDIT, na.rm = TRUE),
+    avg_amt_goods_price = mean(AMT_GOODS_PRICE, na.rm = TRUE),
+    min_days_decision = min(DAYS_DECISION, na.rm = TRUE),
+    avg_days_first_due = mean(DAYS_FIRST_DUE, na.rm = TRUE),
+    rate_down_payment_mean = mean(RATE_DOWN_PAYMENT, na.rm = TRUE),
+    count_approved = sum(NAME_CONTRACT_STATUS == "Approved", na.rm = TRUE),
+    count_refused = sum(NAME_CONTRACT_STATUS == "Refused", na.rm = TRUE),
+    count_canceled = sum(NAME_CONTRACT_STATUS == "Canceled", na.rm = TRUE)
+  )
+
+str(previous_agg)
+```
+
+#Joining
+```{r}
+# Joining the aggregated previous application data with the train data
+train_data_full <- train_data %>%
+  left_join(previous_agg, by = "SK_ID_CURR")
+
+head(train_data_full)
+str(train_data_full)
+summary(train_data_full)
+```
+
+## Exploring the joined transactional data
+```{r}
+new_features <- names(previous_agg)
+
+#filtering out only numeric columns for correlation analysis
+numeric_columns <- sapply(train_data_full[, new_features], is.numeric)
+numeric_data <- train_data_full[, c("TARGET", new_features[numeric_columns])]
+
+# correlations of these numeric features with the TARGET
+correlations <- cor(numeric_data, use = "complete.obs")
+
+#sorting correlations to see the strongest relationships with TARGET
+sorted_correlations <- sort(correlations["TARGET", -1], decreasing = TRUE)  
+sorted_correlations
+
+
+```
+
+ *Do some of the added columns show promise in predicting default?*
+
+Yes, the columns count_refused, count_approved, and min_days_decision, directly relate to past credit interactions and show good promise to be used in the predictive modeling. 
+
+count_approved: Reflects how many of the client's previous applications were approved. A higher count might correlate with a lower risk of default, showing previous trustworthiness in repaying debts.
+count_refused: The number of times a client's previous applications were refused. A higher number here might mean a higher risk and could be predictive of default.
+min_days_decision: Represents the shortest number of days since a decision was made on a previous application. This could indicate recent financial activity or changes in the client’s circumstances.
+
+## Results 
+
+While conducting my EDA for the Home Credit Group default risk prediction, I uncovered significant insights and potential data challenges that could influence the analytics approach moving forward. The analysis showed a huge imbalance in the target variable, with a majority of applicants not defaulting on loans. This imbalance shows importance of careful handling during model training to make sure that the predictive model does not favor the majority class.
+
+I discovered several strong relationships between the target variable and features such as age, employment duration, external sources ratings, and the number of days since the last phone change. Also, new variables from previous application data such as the count of previous applications, approvals, and refusals, showed high correlations with default risk. These suggested that applicants previous credit history is a good predictor of their future financial behavior. Because of this, I will make sure to include transactional history in the predictive model. The EDA also showed data quality issues, mainly in the form of missing values in several key variables. This means that comprehensive data cleaning and possibly imputation to prepare the dataset are essential for effective modeling.
+
+Overall, the exploratory data analysis has helped me better understand the data and its relationships. It has also confirmed my approach to building a strong model for predicting loan defaults. These insights will help in the next steps of creating features and choosing the right model to fit the complex patterns I have seen in the data so far. 
+
+
