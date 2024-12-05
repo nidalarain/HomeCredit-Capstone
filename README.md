@@ -1,0 +1,2 @@
+This project focuses on addressing a critical challenge for [Your Organization/Scenario]: evaluating the repayment capacity of loan applicants with limited or no credit history. Leveraging data-driven machine learning techniques, our predictive model improves loan approval decisions while minimizing default rates. This work directly supports the business goal of promoting financial inclusion by enabling responsible credit access for underserved communities.
+
