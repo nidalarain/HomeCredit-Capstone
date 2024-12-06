@@ -3,7 +3,7 @@ Leveraging data-driven machine learning techniques, our predictive model improve
 This work directly supports the business goal of promoting financial inclusion by enabling responsible credit access for underserved communities.
 
 
-Business Problem & Objective
+**Business Problem & Objective**
 Problem Statement:
 Loan providers face significant risk in approving applications from individuals with limited credit history. Existing methods either reject these applications outright or rely on inaccurate proxies, leading to lost opportunities or increased defaults.
 
