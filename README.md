@@ -4,6 +4,7 @@ This work directly supports the business goal of promoting financial inclusion b
 
 
 **Business Problem & Objective**
+
 Problem Statement:
 Loan providers face significant risk in approving applications from individuals with limited credit history. Existing methods either reject these applications outright or rely on inaccurate proxies, leading to lost opportunities or increased defaults.
 
@@ -11,7 +12,7 @@ Objective:
 To create a supervised learning model that accurately predicts loan repayment probabilities, enabling the approval of more loans without increasing default risk.
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Solution Overview
+**Solution Overview**
 
 Exploratory Data Analysis (EDA):
 Conducted thorough data exploration to identify patterns, handle missing values, and address imbalances.
@@ -25,8 +26,8 @@ Focused on precision, recall, and F1-score to ensure robustness in assessing loa
 Key Features:
 Engineered features like [e.g., income-to-loan ratio, employment stability index], improving model interpretability and accuracy.
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Contributions
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Contributions**
 
 My Role:
 As a core contributor, I:
@@ -37,5 +38,29 @@ Collaborated with the group to divide up the modeling tasks, with each member ex
 Focused on developing and fine-tuning a Random Forest model, which achieved a Kaggle score of 0.54218, making it the third-best performing model in our group.
 Produced detailed visualizations, documented findings in a reproducible R Markdown report, and contributed insights to the group’s overall model evaluation and selection process.
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Business Value**
+
+The predictive model delivers tangible benefits:
+
+Increased Revenue: By approving more loans with confidence.
+Reduced Risk: Mitigates defaults by accurately identifying repayment capacity.
+Enhanced Inclusion: Empowers underserved individuals to access credit, fostering financial growth.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Challenges Encountered**
+
+Imbalanced Data: The dataset contained a significant majority class bias, requiring careful handling through resampling techniques.
+
+Feature Engineering: Extracting meaningful insights from sparse data demanded domain knowledge and creative problem-solving.
+
+Model Overfitting: Initial models were overfit; we addressed this through regularization techniques and extensive validation.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Key Learnings**
+Technical Skills: Gained expertise in supervised learning, model evaluation, and feature engineering.
+
+Problem-Solving: Learned to navigate challenges in data quality and imbalances effectively.
+
+Team Collaboration: Coordinated with peers to integrate insights and improve the overall solution.
 
